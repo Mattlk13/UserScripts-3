@@ -14,73 +14,94 @@
 // @supportURL  https://github.com/jerone/UserScripts/issues
 // @contributionURL https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=VCYMHWQ7ZMBKW
 // @icon        https://github.githubassets.com/pinned-octocat.svg
-// @version     1.2.3
+// @version     1.2.5
 // @grant       none
 // @run-at      document-end
 // @include     https://github.com/*
 // ==/UserScript==
 
-(function() {
+(function () {
 
-	String.format = function(string) {
+	String.format = function (string) {
 		var args = Array.prototype.slice.call(arguments, 1, arguments.length);
-		return string.replace(/{(\d+)}/g, function(match, number) {
+		return string.replace(/{(\d+)}/g, function (match, number) {
 			return typeof args[number] !== "undefined" ? args[number] : match;
 		});
 	};
 
 	function addLink() {
-		if(document.getElementById("GithubPagesLinker")) {
+		if (document.getElementById("GithubPagesLinker")) {
 			return;
 		}
 
-		var meta = document.querySelector(".repository-meta");
+		var meta = document.querySelector('main h1');
 		if (!meta) {
 			return;
 		}
 
-		var branch = document.querySelector(".js-navigation-open[data-name='gh-pages']");
-		if (!branch) {
+		var branchSelector = document.querySelector('#branch-select-menu');
+		if (!branchSelector) {
 			return;
 		}
 
-		var tree = branch.getAttribute("href").split("/"); // `/{user}/{repo}/tree/gh-pages`;
-		var url = String.format("https://{0}.github.io/{1}/", tree[1], tree[2]);
+		var branch = document.querySelector('.SelectMenu-item[href$="/tree/gh-pages"]');
+		if (branch) {
+			createLink(branch);
+		} else {
+			const observer = new MutationObserver(function () {
+				var branch2 = document.querySelector('.SelectMenu-item[href$="/tree/gh-pages"]');
+				if (branch2) {
+					observer.disconnect();
+					createLink(branch2);
+				}
+			});
 
-		var div = document.createElement("div");
-		div.id = "GithubPagesLinker";
-		div.style.margin = "-10px 0px 10px";
-		meta.parentNode.insertBefore(div, meta.nextSibling);
+			observer.observe(branchSelector, { subtree: true, childList: true });
 
-		var img = document.createElement("img");
-		img.setAttribute("src", "https://assets-cdn.github.com/images/icons/emoji/octocat.png");
-		img.setAttribute("align", "absmiddle");
-		img.classList.add("emoji");
-		img.style.height = "16px";
-		img.style.width = "16px";
-		div.appendChild(img);
+			var dropdown = branchSelector.querySelector('ref-selector');
+			window.setTimeout(function () {
+				dropdown.dispatchEvent(new CustomEvent('container-mouseover', { bubbles: true }));
+			}, 100);
+		}
 
-		div.appendChild(document.createTextNode(" "));
+		function createLink(branch2) {
+			var tree = branch2.getAttribute("href").split("/"); // `/{user}/{repo}/tree/gh-pages`;
+			var url = String.format("{0}//{1}.github.io/{2}/", tree[0], tree[3], tree[4]);
 
-		var a = document.createElement("a");
-		a.setAttribute("href", "https://pages.github.com");
-		a.setAttribute("title", "More info about gh-pages...");
-		a.style.color = "inherit";
-		a.appendChild(document.createTextNode("Github Pages"));
-		div.appendChild(a);
+			var div = document.createElement("small");
+			div.id = "GithubPagesLinker";
+			meta.parentNode.insertBefore(div, meta.nextSibling);
 
-		div.appendChild(document.createTextNode(": "));
+			var img = document.createElement("img");
+			img.setAttribute("src", "https://github.githubassets.com/images/icons/emoji/octocat.png");
+			img.setAttribute("align", "absmiddle");
+			img.classList.add("emoji");
+			img.style.height = "16px";
+			img.style.width = "16px";
+			div.appendChild(img);
 
-		var aa = document.createElement("a");
-		aa.setAttribute("href", url);
-		aa.appendChild(document.createTextNode(url));
-		div.appendChild(aa);
+			div.appendChild(document.createTextNode(" "));
+
+			var a = document.createElement("a");
+			a.setAttribute("href", "{https}://pages.github.com");
+			a.setAttribute("title", "More info about gh-pages...");
+			a.style.color = "inherit";
+			a.appendChild(document.createTextNode("Github Pages"));
+			div.appendChild(a);
+
+			div.appendChild(document.createTextNode(": "));
+
+			var aa = document.createElement("a");
+			aa.setAttribute("href", url);
+			aa.appendChild(document.createTextNode(url));
+			div.appendChild(aa);
+		}
 	}
 
 	// Init;
 	addLink();
 
 	// On pjax;
-    document.addEventListener('pjax:end', addLink);
+	document.addEventListener('pjax:end', addLink);
 
 })();
